@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String?
+  createdAt DateTime @default(now())
+}
+
+model Showroom {
+  id        String          @id @default(cuid())
+  name      String
+  ownerName String
+  city      String
+  area      String
+  phone     String          @unique
+  password  String          @default("dealer123")
+  gstin     String?
+  inventory ShowroomStock[]
+  createdAt DateTime        @default(now())
+}
+
+model Product {
+  id           String          @id
+  name         String
+  category     String
+  image        String
+  mrp          Int
+  rating       Float           @default(4.5)
+  reviewsCount Int             @default(0)
+  displaySize  String?
+  resolution   String?
+  energyRating String?
+  capacity     String?
+  warranty     String
+  dealers      ShowroomStock[]
+}
+
+model ShowroomStock {
+  id         String   @id @default(cuid())
+  showroomId String
+  productId  String
+  price      Int
+  inStock    Boolean  @default(true)
+  stockCount Int      @default(0)
+  activeDeal String?
+  distanceKm Float    @default(1.0)
+  updatedAt  DateTime @updatedAt
+
+  showroom Showroom @relation(fields: [showroomId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([showroomId, productId])
+}
