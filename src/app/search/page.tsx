@@ -4,8 +4,9 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import ProductCard from "@/components/ProductCard";
+import StoreMapModal from "@/components/StoreMapModal";
 import { useLocation } from "@/context/LocationContext";
-import { Search, SlidersHorizontal, Loader2 } from "lucide-react";
+import { Search, SlidersHorizontal, Loader2, MapPin } from "lucide-react";
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -16,6 +17,10 @@ function SearchContent() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"lowest" | "distance" | "rating">("lowest");
+
+  // Map Modal State
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchSearchData = async () => {
@@ -34,13 +39,22 @@ function SearchContent() {
   }, [currentCity.name]);
 
   const filtered = products
-    .filter((p) => p.name.toLowerCase().includes(query.toLowerCase()) || p.category.toLowerCase().includes(query.toLowerCase()))
+    .filter(
+      (p) =>
+        p.name.toLowerCase().includes(query.toLowerCase()) ||
+        p.category.toLowerCase().includes(query.toLowerCase())
+    )
     .sort((a, b) => {
       if (sortBy === "lowest") return a.lowestPrice - b.lowestPrice;
       if (sortBy === "distance") return a.distanceKm - b.distanceKm;
       if (sortBy === "rating") return b.rating - a.rating;
       return 0;
     });
+
+  const handleOpenMap = (product: any) => {
+    setSelectedProduct(product);
+    setIsMapModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
@@ -77,7 +91,7 @@ function SearchContent() {
           </div>
         </div>
 
-        {/* Result grid */}
+        {/* Result Grid */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-2" />
@@ -91,11 +105,34 @@ function SearchContent() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <div
+                key={product.id}
+                onClick={() => handleOpenMap(product)}
+                className="cursor-pointer group flex flex-col transition-all duration-200 hover:-translate-y-1"
+              >
+                <ProductCard product={product} />
+
+                {/* Visual Map Action Trigger */}
+                <button
+                  type="button"
+                  className="mt-2.5 w-full py-2.5 px-3 bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 border border-blue-200/60 shadow-xs cursor-pointer"
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>View Showroom Map ({product.distanceKm || "2.4"} km away)</span>
+                </button>
+              </div>
             ))}
           </div>
         )}
       </main>
+
+      {/* Showroom Map Popup Modal */}
+      <StoreMapModal
+        isOpen={isMapModalOpen}
+        onClose={() => setIsMapModalOpen(false)}
+        product={selectedProduct}
+        currentCityName={currentCity.name}
+      />
     </div>
   );
 }
