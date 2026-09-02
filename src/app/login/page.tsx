@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
-import { User, Lock, Mail, ArrowRight, ShieldCheck, Store } from "lucide-react";
+import { User, Lock, Mail, ArrowRight, Store } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,7 +29,7 @@ export default function LoginPage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to register");
-        
+
         setIsRegister(false);
         setError("Account created! Please sign in.");
       } else {
@@ -40,6 +40,17 @@ export default function LoginPage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Login failed");
+
+        // Automatically store authenticated user details in localStorage
+        const userToStore = data.user || {
+          name: data.name || (name.trim() ? name : email.split("@")[0]),
+          email: email,
+          phone: data.phone || "+91 98765 43210",
+          city: data.city || "Ongole, AP",
+        };
+
+        localStorage.setItem("user", JSON.stringify(userToStore));
+        window.dispatchEvent(new Event("storage"));
 
         router.push("/");
       }
@@ -72,7 +83,13 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-bold text-center">
+            <div
+              className={`mb-4 p-3 rounded-xl border text-xs font-bold text-center ${
+                error.includes("Account created")
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                  : "bg-red-50 border-red-200 text-red-600"
+              }`}
+            >
               {error}
             </div>
           )}
@@ -141,7 +158,7 @@ export default function LoginPage() {
                 setIsRegister(!isRegister);
                 setError("");
               }}
-              className="text-blue-600 hover:underline font-bold"
+              className="text-blue-600 hover:underline font-bold cursor-pointer"
             >
               {isRegister ? "Already have an account? Sign In" : "Don't have an account? Sign Up Free"}
             </button>

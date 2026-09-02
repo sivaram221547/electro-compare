@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   MapPin, 
   Scale, 
@@ -13,16 +14,74 @@ import {
   X,
   Search,
   Check,
-  Building2
+  Building2,
+  LogOut,
+  Heart,
+  LayoutDashboard
 } from "lucide-react";
 import { useCompare } from "@/context/CompareContext";
 import { useLocation, SUPPORTED_CITIES } from "@/context/LocationContext";
 
+interface UserProfile {
+  name?: string;
+  email?: string;
+  image?: string | null;
+}
+
 export default function Navbar() {
+  const router = useRouter();
   const { compareItems } = useCompare();
   const { currentCity, setCityById } = useLocation();
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [citySearch, setCitySearch] = useState("");
+  
+  // User Authentication & Profile Dropdown State
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkUser = () => {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        try {
+          setCurrentUser(JSON.parse(stored));
+        } catch (e) {
+          console.error("Failed to parse stored user", e);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+    };
+
+    checkUser();
+
+    // Re-check user when storage changes across tabs/windows
+    window.addEventListener("storage", checkUser);
+    return () => window.removeEventListener("storage", checkUser);
+  }, []);
+
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    setCurrentUser(null);
+    setIsProfileMenuOpen(false);
+    router.push("/login");
+  };
+
+  const initialLetter = currentUser?.name
+    ? currentUser.name.trim().charAt(0).toUpperCase()
+    : currentUser?.email?.charAt(0).toUpperCase() || "U";
 
   const filteredCities = SUPPORTED_CITIES.filter((city) =>
     city.name.toLowerCase().includes(citySearch.toLowerCase()) ||
@@ -113,14 +172,79 @@ export default function Navbar() {
               <span>Showroom Portal</span>
             </Link>
 
-            {/* User Sign In */}
-            <Link
-              href="/login"
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md shadow-blue-600/20 transition flex items-center gap-1.5"
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>Sign In</span>
-            </Link>
+            {/* Dynamic User Profile / Sign In */}
+            {currentUser ? (
+              <div className="relative" ref={profileMenuRef}>
+                <button
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl transition cursor-pointer"
+                >
+                  {currentUser.image ? (
+                    <img
+                      src={currentUser.image}
+                      alt={currentUser.name || "User"}
+                      className="w-8 h-8 rounded-xl object-cover ring-2 ring-blue-500"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center shadow-sm">
+                      {initialLetter}
+                    </div>
+                  )}
+                  <span className="text-xs font-bold text-slate-800 max-w-[100px] truncate hidden sm:inline">
+                    {currentUser.name || "My Account"}
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {isProfileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-100 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-4 py-2.5 border-b border-slate-100">
+                      <p className="text-xs font-bold text-slate-900 truncate">
+                        {currentUser.name || "User"}
+                      </p>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                        {currentUser.email}
+                      </p>
+                    </div>
+
+                    <div className="py-1">
+                      <Link
+                        href="/profile"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition"
+                      >
+                        <LayoutDashboard className="w-4 h-4" /> My Profile Dashboard
+                      </Link>
+                      <Link
+                        href="/profile"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition"
+                      >
+                        <Heart className="w-4 h-4" /> My Wishlist
+                      </Link>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-1">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 transition text-left"
+                      >
+                        <LogOut className="w-4 h-4" /> Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md shadow-blue-600/20 transition flex items-center gap-1.5"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -142,7 +266,7 @@ export default function Navbar() {
               </div>
               <button
                 onClick={() => setIsLocationModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition"
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
