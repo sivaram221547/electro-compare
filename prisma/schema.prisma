@@ -7,30 +7,88 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ------------------------------------
+// Enums
+// ------------------------------------
+enum ShowroomType {
+  ELECTRONICS
+  MOBILE_ACCESSORIES
+  HOME_APPLIANCES
+  COMPUTERS_LAPTOPS
+  MULTI_BRAND
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// ------------------------------------
+// Customer User Model
+// ------------------------------------
 model User {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
   phone     String?
   password  String
+  city      String?  @default("Ongole, AP")
   createdAt DateTime @default(now())
 }
+
+// ------------------------------------
+// Showroom Model (3-Step KYC & Profile)
+// ------------------------------------
 model Showroom {
-  id        String          @id @default(cuid())
-  name      String
-  ownerName String
-  city      String
-  area      String
-  phone     String          @unique
-  password  String          @default("dealer123")
-  gstin     String?
-  inventory ShowroomStock[]
-  createdAt DateTime        @default(now())
+  id               String             @id @default(uuid())
+
+  // Step 1: Owner & Credentials
+  ownerName        String
+  mobileNumber     String             @unique
+  email            String?            @unique
+  password         String             @default("dealer123")
+  ownerPhoto       String?
+
+  // Step 2: Showroom Info & GPS Location
+  showroomName     String
+  category         ShowroomType       @default(MULTI_BRAND)
+  address          String
+  villageTown      String
+  city             String
+  district         String
+  state            String             @default("Andhra Pradesh")
+  pincode          String
+  latitude         Float?
+  longitude        Float?
+  showroomPhone    String?
+  showroomEmail    String?
+  workingHours     String?            @default("10:00 AM - 09:30 PM")
+  weeklyHoliday    String?            @default("None")
+
+  // Step 3: KYC & Verification
+  gstNumber        String?
+  gstCertificate   String?
+  ownerIdProof     String?
+  shopProof        String?
+  frontPhoto       String
+  insidePhoto      String?
+  status           VerificationStatus @default(PENDING)
+
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  // Inventory linked to Master Products
+  inventory        ShowroomStock[]
 }
 
+// ------------------------------------
+// Master Global Product Catalog
+// ------------------------------------
 model Product {
-  id           String          @id
+  id           String          @id @default(uuid())
   name         String
+  brand        String          @default("Generic")
   category     String
   image        String
   mrp          Int
@@ -40,23 +98,32 @@ model Product {
   resolution   String?
   energyRating String?
   capacity     String?
-  warranty     String
+  warranty     String?
+  createdAt    DateTime        @default(now())
+
+  // Linked dealers selling this master product
   dealers      ShowroomStock[]
 }
 
+// ------------------------------------
+// Showroom Inventory & Live Pricing
+// ------------------------------------
 model ShowroomStock {
-  id         String   @id @default(cuid())
-  showroomId String
-  productId  String
-  price      Int
-  inStock    Boolean  @default(true)
-  stockCount Int      @default(0)
-  activeDeal String?
-  distanceKm Float    @default(1.0)
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(uuid())
+  showroomId  String
+  productId   String
 
-  showroom Showroom @relation(fields: [showroomId], references: [id], onDelete: Cascade)
-  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  price       Int
+  inStock     Boolean  @default(true)
+  stockCount  Int      @default(1)
+  activeDeal  String?  // e.g. "Instant ₹2,000 Exchange Bonus"
+  distanceKm  Float    @default(1.0)
+  isPublished Boolean  @default(true)
+
+  updatedAt   DateTime @updatedAt
+
+  showroom    Showroom @relation(fields: [showroomId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([showroomId, productId])
 }
